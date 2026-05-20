@@ -90,7 +90,6 @@ public class CourseService {
         }
 
         validateStudentWithFeign(studentId);
-
         validatePrerequisite(course, studentId);
 
         Enrollment enrollment = Enrollment.builder()
@@ -124,6 +123,33 @@ public class CourseService {
                 .toList();
 
         return new CourseStudentsResponseDto(course.getId(), course.getTitle(), students);
+    }
+
+    public List<CourseResponseDto> getCoursesByStudentName(String name) {
+        List<StudentDto> students = studentFeignClient.searchStudentsByName(name);
+
+        if (students.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> studentIds = students.stream()
+                .map(StudentDto::getId)
+                .toList();
+
+        List<Long> courseIds = enrollmentRepository.findByStudentIdIn(studentIds)
+                .stream()
+                .map(Enrollment::getCourseId)
+                .distinct()
+                .toList();
+
+        if (courseIds.isEmpty()) {
+            return List.of();
+        }
+
+        return courseRepository.findAllById(courseIds)
+                .stream()
+                .map(this::toCourseResponseDto)
+                .toList();
     }
 
     private void validatePrerequisite(Course course, Long studentId) {
